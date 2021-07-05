@@ -22,6 +22,8 @@ from models.models import create_model
 from options.test_options import TestOptions
 from util.videoswap import video_swap
 
+import triton_python_backend_utils as pb_utils
+
 
 model, app = None, None
 transformer_Arcface = transforms.Compose([
@@ -46,7 +48,7 @@ def initialize():
     app.prepare(ctx_id=0, det_thresh=0.6, det_size=(256, 256))
 
 
-def infer(source, target, output_path, result_dir = './output', crop_size=224):
+def infer(source, target, result_dir = './output', crop_size=224):
     assert isfile(source), f'Can\'t find source at {source}'
     assert isfile(target), f'Can\'t find target at {target}'
     output_filename = f'infer-{splitext(basename(source))[0]}-{splitext(basename(target))[0]}.mp4'

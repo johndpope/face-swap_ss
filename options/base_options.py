@@ -1,11 +1,35 @@
-import argparse
 import os
 from util import util
 import torch
 
+
+class AttrDict:
+    def __init__(self, target_dict: dict) -> None:
+        self.target_dict = target_dict
+        
+    def __getattr__(self, attr):
+        return self.target_dict.get(attr)
+    
+class MockParser:
+    def __init__(self):
+        self.default_values = dict()
+        
+    def add_argument(self, name: str, type: type = None, default = None, help = None, action = None, **kwargs):
+        key = name if name[:2] != '--' else name[2:]
+        if default is None:
+            if action == 'store_true':
+                default = False
+            if action == 'store_false':
+                default = True
+                
+        self.default_values[key] = default
+        
+    def parse_args(self):
+        return AttrDict(self.default_values)
+
 class BaseOptions():
     def __init__(self):
-        self.parser = argparse.ArgumentParser()
+        self.parser = MockParser()
         self.initialized = False
 
     def initialize(self):
