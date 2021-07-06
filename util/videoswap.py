@@ -39,6 +39,22 @@ def insert_audio(save_path, audio_path):
                         raise_on_error=True)
         os.remove(temp_path)
 
+def get_frames_n(video_path: str) -> int:
+    def _manual_count(handler):
+        frames_n = 0
+        while True:
+            status, _ = handler.read()
+            if not status:
+                break
+            frames_n += 1
+        return frames_n 
+
+    cap = cv2.VideoCapture(video_path)
+    frames_n = _manual_count(cap)
+    cap.release()
+    return frames_n
+
+
 def _totensor(array):
     tensor = torch.from_numpy(array)
     img = tensor.transpose(0, 1).transpose(0, 2).contiguous()
@@ -52,36 +68,29 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, save_path, temp
     audio_path = join(temp_results_dir, splitext(basename(video_path))[0] + '.wav')
     extract_audio(video_path, audio_path)
 
-    video = cv2.VideoCapture(video_path)
-    ret = True
-    frame_index = 0
+    frame_count = get_frames_n(video_path)
 
-    frame_count = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-    
+    video = cv2.VideoCapture(video_path)
     fps = video.get(cv2.CAP_PROP_FPS)
 
     for frame_index in tqdm(range(frame_count)): 
-        ret, frame = video.read()
-        if  ret:
-            detect_results = detect_model.get(frame,crop_size)
+        _, frame = video.read()
+        detect_results = detect_model.get(frame,crop_size)
 
-            if detect_results is not None:
-                frame_align_crop_list = detect_results[0]
-                frame_mat_list = detect_results[1]
-                swap_result_list = []
+        if detect_results is not None:
+            frame_align_crop_list = detect_results[0]
+            frame_mat_list = detect_results[1]
+            swap_result_list = []
 
-                for frame_align_crop in frame_align_crop_list:
-                    frame_align_crop_tenor = _totensor(cv2.cvtColor(frame_align_crop,cv2.COLOR_BGR2RGB))[None,...].cuda()
+            for frame_align_crop in frame_align_crop_list:
+                frame_align_crop_tenor = _totensor(cv2.cvtColor(frame_align_crop,cv2.COLOR_BGR2RGB))[None,...].cuda()
 
-                    swap_result = swap_model(None, frame_align_crop_tenor, id_veсtor, None, True)[0]
-                    swap_result_list.append(swap_result)
-                reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
-
-            else:
-                frame = frame.astype(np.uint8)
-                cv2.imwrite(join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)), frame)
+                swap_result = swap_model(None, frame_align_crop_tenor, id_veсtor, None, True)[0]
+                swap_result_list.append(swap_result)
+            reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
         else:
-            break
+            frame = frame.astype(np.uint8)
+            cv2.imwrite(join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)), frame)
 
     video.release()
 
@@ -91,3 +100,4 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, save_path, temp
     clips = ImageSequenceClip(image_filenames, fps=fps)
     clips.write_videofile(save_path)
     insert_audio(save_path, audio_path)
+    shutil.rmtree(temp_results_dir)
