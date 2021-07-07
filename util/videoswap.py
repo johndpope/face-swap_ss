@@ -70,6 +70,19 @@ def get_frames_n(video_path: str) -> int:
     cap.release()
     return frames_n
 
+def lower_resolution(video_path: str) -> None:
+    M = 1080
+    vidcap = cv2.VideoCapture(video_path)
+    width, height = vidcap.get(cv2.CAP_PROP_FRAME_WIDTH), vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    if width > M and height > M:
+        print(f'=> Lowering resolution of the video "{basename(video_path)}" (smallest side is {M})...')
+        video_temp_path = splitext(video_path)[0] + '_TEMP' + splitext(video_path)[1]
+        os.rename(video_path, video_temp_path)
+        scale = f'-vf scale="-2:{M}"' if width > height else f'-vf scale="{M}:-2"'
+        command = f'ffmpeg -hide_banner -loglevel error -i "{video_temp_path}" {scale} -y "{video_path}"'
+        execute_command(command, f'Unable to lower the resolution of the {video_path} ({datetime.now()}).', raise_on_error=True)
+        os.remove(video_temp_path)
+    return video_path
 
 def _totensor(array):
     tensor = torch.from_numpy(array)
@@ -79,6 +92,7 @@ def _totensor(array):
 
 @timer('Swapping Face')
 def video_swap(video_path, id_veсtor, swap_model, detect_model, save_path, temp_results_dir='./temp_results', crop_size=224):
+    lower_resolution(video_path)
     print(f'=> Swapping face in "{video_path}"...')
     if exists(temp_results_dir):
         shutil.rmtree(temp_results_dir)

@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from insightface_func.face_detect_crop_mutil import Face_detect_crop
+from insightface_func.face_detect_crop_single import Face_detect_crop
 from models.models import create_model
 from options.test_options import TestOptions
 from util.videoswap import video_swap
