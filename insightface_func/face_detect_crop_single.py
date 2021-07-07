@@ -57,7 +57,7 @@ class Face_detect_crop:
                                              max_num=max_num,
                                              metric='default')
         if bboxes.shape[0] == 0:
-            return None
+            return None, None
         # ret = []
         # for i in range(bboxes.shape[0]):
         #     bbox = bboxes[i, 0:4]

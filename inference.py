@@ -1,5 +1,6 @@
 import sys
 from os.path import basename, isfile, join, splitext
+from shutil import copy2
 
 import cv2
 import numpy as np
@@ -36,7 +37,7 @@ def initialize():
     app.prepare(ctx_id=0, det_thresh=0.6, det_size=(256, 256))
 
 
-def infer(source, target, result_dir = './output', crop_size=224):
+def infer(source, target, result_dir='./output', crop_size=224):
     assert isfile(source), f'Can\'t find source at {source}'
     assert isfile(target), f'Can\'t find target at {target}'
     output_filename = f'infer-{splitext(basename(source))[0]}-{splitext(basename(target))[0]}.mp4'
@@ -47,6 +48,9 @@ def infer(source, target, result_dir = './output', crop_size=224):
 
     img_a_whole = cv2.imread(source)
     img_a_align_crop, _ = app.get(img_a_whole, crop_size)
+    if img_a_align_crop is None:
+        copy2(target, output_path)
+        return output_path
     img_a_align_crop_pil = Image.fromarray(
         cv2.cvtColor(img_a_align_crop[0], cv2.COLOR_BGR2RGB))
     img_a = transformer_Arcface(img_a_align_crop_pil)
@@ -64,6 +68,6 @@ def infer(source, target, result_dir = './output', crop_size=224):
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 3, 'Usage: python inference.py "path/to/source_image" "path/to/target_video"'
+    assert len(sys.argv) == 3, 'Usage: python3 inference.py "path/to/source_image" "path/to/target_video"'
     initialize()
     infer(sys.argv[1], sys.argv[2])
