@@ -89,7 +89,6 @@ def _totensor(array):
     img = tensor.transpose(0, 1).transpose(0, 2).contiguous()
     return img.float().div(255)
 
-
 @timer('Swapping Face')
 def video_swap(video_path, id_veсtor, swap_model, detect_model, save_path, temp_results_dir='./temp_results', crop_size=224):
     lower_resolution(video_path)
@@ -108,17 +107,17 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, save_path, temp
 
     for frame_index in tqdm(range(frame_count)): 
         _, frame = video.read()
-        detect_results = detect_model.get(frame,crop_size)
+        detect_results = detect_model.get(frame, crop_size)
 
-        if detect_results is not None:
+        if not detect_results in [None, (None, None)]:
             frame_align_crop_list = detect_results[0]
             frame_mat_list = detect_results[1]
             swap_result_list = []
 
             for frame_align_crop in frame_align_crop_list:
-                frame_align_crop_tenor = _totensor(cv2.cvtColor(frame_align_crop,cv2.COLOR_BGR2RGB))[None,...].cuda()
+                frame_align_crop_tensor = _totensor(cv2.cvtColor(frame_align_crop,cv2.COLOR_BGR2RGB))[None,...].cuda()
 
-                swap_result = swap_model(None, frame_align_crop_tenor, id_veсtor, None, True)[0]
+                swap_result = swap_model(None, frame_align_crop_tensor, id_veсtor, None, True)[0]
                 swap_result_list.append(swap_result)
             reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
         else:
