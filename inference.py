@@ -9,12 +9,13 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
+from face_seg.nets.MobileNetV2_unet import MobileNetV2_unet
 from insightface_func.face_detect_crop_single import Face_detect_crop
 from models.models import create_model
 from options.test_options import TestOptions
 from util.videoswap import video_swap
 
-model, app = None, None
+model, app, seg_model = None, None, None
 transformer_Arcface = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -35,6 +36,11 @@ def initialize():
     global app
     app = Face_detect_crop(name='antelope', root='./insightface_func/models')
     app.prepare(ctx_id=0, det_thresh=0.6, det_size=(256, 256))
+    global seg_model
+    seg_model = MobileNetV2_unet(None).to('cuda')
+    state_dict = torch.load('./face_seg/checkpoints/model.pt', map_location='cpu')
+    seg_model.load_state_dict(state_dict)
+    seg_model.eval()
 
 
 def infer(source, target, result_dir='./output', crop_size=224):
@@ -45,6 +51,7 @@ def infer(source, target, result_dir='./output', crop_size=224):
 
     assert model is not None
     assert app is not None
+    assert seg_model is not None
 
     img_a_whole = cv2.imread(source)
     img_a_align_crop, _ = app.get(img_a_whole, crop_size)
@@ -63,7 +70,7 @@ def infer(source, target, result_dir='./output', crop_size=224):
     latend_id = latend_id / np.linalg.norm(latend_id, axis=1, keepdims=True)
     latend_id = latend_id.to('cuda')
 
-    video_swap(target, latend_id, model, app, output_path)
+    video_swap(target, latend_id, model, app, seg_model, output_path)
     return output_path
 
 
