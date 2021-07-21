@@ -15,7 +15,7 @@ from models.models import create_model
 from options.test_options import TestOptions
 from util.videoswap import video_swap
 
-model, app, seg_model = None, None, None
+model, app, seg_model, sr_model = None, None, None, None
 transformer_Arcface = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
@@ -27,7 +27,7 @@ def initialize():
     opt.initialize()
     opt.parser.add_argument('-f')  # dummy arg to avoid bug
     opt = opt.parse()
-    opt.Arc_path = './arcface_model/arcface_checkpoint.tar'
+    opt.Arc_path = './weights/arcface_checkpoint.tar'
     opt.isTrain = False
     torch.nn.Module.dump_patches = True
     global model
@@ -46,12 +46,12 @@ def initialize():
 def infer(source, target, result_dir='./output', crop_size=224):
     assert isfile(source), f'Can\'t find source at {source}'
     assert isfile(target), f'Can\'t find target at {target}'
-    output_filename = f'infer-{splitext(basename(source))[0]}-{splitext(basename(target))[0]}.mp4'
+    output_filename = f'infer-{splitext(basename(source))[0]}-{splitext(basename(target))[0]}{splitext(basename(target))[1]}'
     output_path = join(result_dir, output_filename)
 
-    assert model is not None
-    assert app is not None
-    assert seg_model is not None
+    assert not model is None
+    assert not app is None
+    assert not seg_model is None
 
     img_a_whole = cv2.imread(source)
     img_a_align_crop, _ = app.get(img_a_whole, crop_size)
