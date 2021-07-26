@@ -55,6 +55,7 @@ def create_video(save_path: str, audio_path: str, frames_path: str, fps: float) 
         execute_command(command, f'> > > > > Error while creating the video from the frames of {frames_path} ({datetime.now()}).', 
                         raise_on_error=True)
 
+@timer('Getting number of frames')
 def get_frames_n(video_path: str) -> int:
     def _manual_count(handler):
         frames_n = 0
@@ -70,6 +71,7 @@ def get_frames_n(video_path: str) -> int:
     cap.release()
     return frames_n
 
+@timer('Lowering resolution')
 def lower_resolution(video_path: str) -> None:
     M = 1080
     vidcap = cv2.VideoCapture(video_path)
@@ -90,7 +92,7 @@ def _totensor(array):
     return img.float().div(255)
 
 @timer('Swapping Face')
-def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, save_path, temp_results_dir='./temp_results', crop_size=224):
+def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, sr_model, save_path, temp_results_dir='./temp_results', crop_size=224):
     lower_resolution(video_path)
     print(f'=> Swapping face in "{video_path}"...')
     if exists(temp_results_dir):
@@ -119,7 +121,7 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, save
 
                 swap_result = swap_model(None, frame_align_crop_tensor, id_veсtor, None, True)[0]
                 swap_result_list.append(swap_result)
-            reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, 
+            reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, sr_model, 
                                join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
         else:
             frame = frame.astype(np.uint8)

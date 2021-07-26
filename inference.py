@@ -3,6 +3,7 @@ from os.path import basename, isfile, join, splitext
 from shutil import copy2
 
 import cv2
+import easydict
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -10,6 +11,7 @@ from PIL import Image
 from torchvision import transforms
 
 from face_seg.nets.MobileNetV2_unet import MobileNetV2_unet
+from fsr.models.SRGAN_model import SRGANModel
 from insightface_func.face_detect_crop_single import Face_detect_crop
 from models.models import create_model
 from options.test_options import TestOptions
@@ -41,6 +43,52 @@ def initialize():
     state_dict = torch.load('./face_seg/checkpoints/model.pt', map_location='cpu')
     seg_model.load_state_dict(state_dict)
     seg_model.eval()
+    global sr_model
+    args = easydict.EasyDict({
+        'gpu_ids': None,
+        'batch_size': 32,
+        'lr_G': 1e-4,
+        'weight_decay_G': 0,
+        'beta1_G': 0.9,
+        'beta2_G': 0.99,
+        'lr_D': 1e-4,
+        'weight_decay_D': 0,
+        'beta1_D': 0.9,
+        'beta2_D': 0.99,
+        'lr_scheme': 'MultiStepLR',
+        'niter': 100000,
+        'warmup_iter': -1,
+        'lr_steps': [50000],
+        'lr_gamma': 0.5,
+        'pixel_criterion': 'l1',
+        'pixel_weight': 1e-2,
+        'feature_criterion': 'l1',
+        'feature_weight': 1,
+        'gan_type': 'ragan',
+        'gan_weight': 5e-3,
+        'D_update_ratio': 1,
+        'D_init_iters': 0,
+        'print_freq': 100,
+        'val_freq': 1000,
+        'save_freq': 10000,
+        'crop_size': 0.85,
+        'lr_size': 128,
+        'hr_size': 512,
+        'which_model_G': 'RRDBNet',
+        'G_in_nc': 3,
+        'out_nc': 3,
+        'G_nf': 64,
+        'nb': 16,
+        'which_model_D': 'discriminator_vgg_128',
+        'D_in_nc': 3,
+        'D_nf': 64,
+        'pretrain_model_G': 'weights/90000_G.pth',
+        'pretrain_model_D': None
+    })
+    sr_model = SRGANModel(args, is_train=False)
+    sr_model.load()
+    sr_model.netG.to('cuda')
+    sr_model.netG.eval();
 
 
 def infer(source, target, result_dir='./output', crop_size=224):
@@ -52,6 +100,7 @@ def infer(source, target, result_dir='./output', crop_size=224):
     assert not model is None
     assert not app is None
     assert not seg_model is None
+    assert not sr_model is None
 
     img_a_whole = cv2.imread(source)
     img_a_align_crop, _ = app.get(img_a_whole, crop_size)
@@ -70,7 +119,7 @@ def infer(source, target, result_dir='./output', crop_size=224):
     latend_id = latend_id / np.linalg.norm(latend_id, axis=1, keepdims=True)
     latend_id = latend_id.to('cuda')
 
-    video_swap(target, latend_id, model, app, seg_model, output_path)
+    video_swap(target, latend_id, model, app, seg_model, sr_model, output_path)
     return output_path
 
 
