@@ -20,6 +20,12 @@ def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model
         img_mask = np.array(seg_mask * 255, dtype=float)
         # img_mask = np.full((crop_size, crop_size), 255, dtype=float)
 
+        # select and fill the biggest contour
+        contours, _ = cv2.findContours(img_mask.astype(np.uint8), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
+        img_mask_ = np.zeros_like(img_mask)
+        cv2.drawContours(img_mask_, [max(contours, key = cv2.contourArea)], 0, 255, -1)
+        img_mask = np.array(img_mask_)
+
         # SR-ESRGAN_fsr https://github.com/ewrfcas/Face-Super-Resolution
         swaped_img = esrgan_fsr_transform(torch.clone(swaped_img))
         swaped_img = sr_model.netG(swaped_img.unsqueeze(0))
