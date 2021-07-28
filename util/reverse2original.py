@@ -24,7 +24,7 @@ def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model
         swaped_img = esrgan_fsr_transform(torch.clone(swaped_img))
         swaped_img = sr_model.netG(swaped_img.unsqueeze(0))
         swaped_img = swaped_img.squeeze(0).cpu().detach().numpy().transpose((1, 2, 0))
-        swaped_img = swaped_img / 2.0 + 0.5
+        swaped_img = np.clip(swaped_img / 2.0 + 0.5, 0, 1)
         # swaped_img = swaped_img.cpu().detach().numpy().transpose((1, 2, 0))
 
         mat_rev = cv2.invertAffineTransform(mat)
