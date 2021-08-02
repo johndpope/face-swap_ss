@@ -122,7 +122,7 @@ class SRGANModel(BaseModel):
         else:
             net_struc_str = '{}'.format(self.netG.__class__.__name__)
         if self.rank <= 0:
-            print('Network G structure: {}, with parameters: {:,d}'.format(net_struc_str, n))
+            # print('Network G structure: {}, with parameters: {:,d}'.format(net_struc_str, n))
             logger.info(s)
         if self.is_train:
             # Discriminator

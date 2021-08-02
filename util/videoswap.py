@@ -91,8 +91,8 @@ def _totensor(array):
     img = tensor.transpose(0, 1).transpose(0, 2).contiguous()
     return img.float().div(255)
 
-@timer('Swapping Face')
-def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, sr_model, apply_sr, save_path, temp_results_dir='./temp_results', crop_size=224):
+@timer('Swapping Face in video')
+def video_swap(video_path, source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, output_path, is_prod, temp_results_dir='./temp_results', crop_size=224):
     lower_resolution(video_path)
     print(f'=> Swapping face in "{video_path}"...')
     if exists(temp_results_dir):
@@ -107,9 +107,18 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, sr_m
     video = cv2.VideoCapture(video_path)
     fps = video.get(cv2.CAP_PROP_FPS)
 
-    for frame_index in tqdm(range(frame_count)): 
+    for frame_index in tqdm(range(frame_count), disable=is_prod): 
         _, frame = video.read()
-        detect_results = detect_model.get(frame, crop_size)
+        swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, frame_index, frame)
+
+    video.release()
+    create_video(output_path, audio_path, temp_results_dir, fps)
+    shutil.rmtree(temp_results_dir)
+
+
+def swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, frame_index, frame):
+    with torch.no_grad():
+        detect_results = face_detector.get(frame, crop_size)
 
         if not detect_results in [None, (None, None)]:
             frame_align_crop_list = detect_results[0]
@@ -119,14 +128,10 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, sr_m
             for frame_align_crop in frame_align_crop_list:
                 frame_align_crop_tensor = _totensor(cv2.cvtColor(frame_align_crop,cv2.COLOR_BGR2RGB))[None,...].cuda()
 
-                swap_result = swap_model(None, frame_align_crop_tensor, id_veсtor, None, True)[0]
+                swap_result = face_swap_model(None, frame_align_crop_tensor, source_latend_id, None, True)[0]
                 swap_result_list.append(swap_result)
             reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, sr_model, apply_sr, 
-                               join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
+                                join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
         else:
             frame = frame.astype(np.uint8)
             cv2.imwrite(join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)), frame)
-
-    video.release()
-    create_video(save_path, audio_path, temp_results_dir, fps)
-    shutil.rmtree(temp_results_dir)

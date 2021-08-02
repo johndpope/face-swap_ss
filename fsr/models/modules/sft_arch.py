@@ -166,9 +166,9 @@ class SFT_Net_torch(nn.Module):
         sft_branch.append(nn.Conv2d(64, 64, 3, 1, 1))
         self.sft_branch = nn.Sequential(*sft_branch)
 
-        self.HR_branch = nn.Sequential(nn.Upsample(scale_factor=2, mode='nearest'),
+        self.HR_branch = nn.Sequential(nn.Upsample(scale_factor=2, mode='nearest', align_corners=False),
                                        nn.Conv2d(64, 64, 3, 1, 1), nn.ReLU(True),
-                                       nn.Upsample(scale_factor=2, mode='nearest'),
+                                       nn.Upsample(scale_factor=2, mode='nearest', align_corners=False),
                                        nn.Conv2d(64, 64, 3, 1, 1), nn.ReLU(True),
                                        nn.Conv2d(64, 64, 3, 1, 1), nn.ReLU(True),
                                        nn.Conv2d(64, 3, 3, 1, 1))

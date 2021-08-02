@@ -435,7 +435,7 @@ class UpBlock_Adain(nn.Module):
         super(UpBlock_Adain, self).__init__()
 
         p = 0
-        conv1 = [nn.Upsample(scale_factor=2, mode='bilinear')]
+        conv1 = [nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)]
         if padding_type == 'reflect':
             conv1 += [nn.ReflectionPad2d(1)]
         elif padding_type == 'replicate':
@@ -643,7 +643,7 @@ class Generator_Adain_Upsample(nn.Module):
             '''Dec += [nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2), kernel_size=3, stride=2, padding=1,
                                          output_padding=1),
                       norm_layer(int(ngf * mult / 2)), activation]'''
-            Dec += [nn.Upsample(scale_factor=2, mode='bilinear'),
+            Dec += [nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
                     nn.Conv2d(ngf * mult, int(ngf * mult / 2), kernel_size=3, stride=1, padding=1),
                     norm_layer(int(ngf * mult / 2)), activation]
         Dec += [nn.ReflectionPad2d(3), nn.Conv2d(ngf, output_nc, kernel_size=7, padding=0), nn.Tanh()]

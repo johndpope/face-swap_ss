@@ -31,7 +31,7 @@ class Face_detect_crop:
                 continue
             model = model_zoo.get_model(onnx_file)
             if model.taskname not in self.models:
-                print('find model:', onnx_file, model.taskname)
+                # print('find model:', onnx_file, model.taskname)
                 self.models[model.taskname] = model
             else:
                 print('duplicated model task type, ignore:', onnx_file, model.taskname)
@@ -43,7 +43,7 @@ class Face_detect_crop:
     def prepare(self, ctx_id, det_thresh=0.5, det_size=(640, 640)):
         self.det_thresh = det_thresh
         assert det_size is not None
-        print('set det-size:', det_size)
+        # print('set det-size:', det_size)
         self.det_size = det_size
         for taskname, model in self.models.items():
             if taskname=='detection':
@@ -58,30 +58,13 @@ class Face_detect_crop:
                                              metric='default')
         if bboxes.shape[0] == 0:
             return None, None
-        # ret = []
-        # for i in range(bboxes.shape[0]):
-        #     bbox = bboxes[i, 0:4]
-        #     det_score = bboxes[i, 4]
-        #     kps = None
-        #     if kpss is not None:
-        #         kps = kpss[i]
-        #     M, _ = face_align.estimate_norm(kps, crop_size, mode ='None') 
-        #     align_img = cv2.warpAffine(img, M, (crop_size, crop_size), borderValue=0.0)
-        # for i in range(bboxes.shape[0]):
-        #     kps = None
-        #     if kpss is not None:
-        #         kps = kpss[i]
-        #     M, _ = face_align.estimate_norm(kps, crop_size, mode ='None') 
-        #     align_img = cv2.warpAffine(img, M, (crop_size, crop_size), borderValue=0.0)
-
         det_score = bboxes[..., 4]
-
-        # select the face with the hightest detection score
         best_index = np.argmax(det_score)
 
         kps = None
         if kpss is not None:
             kps = kpss[best_index]
+        
         M, _ = face_align.estimate_norm(kps, crop_size, mode ='None') 
         align_img = cv2.warpAffine(img, M, (crop_size, crop_size), borderValue=0.0)
         
