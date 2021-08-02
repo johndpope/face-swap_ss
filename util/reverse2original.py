@@ -9,7 +9,7 @@ esrgan_fsr_transform = transforms.Compose([transforms.Resize((128, 128)),
                                                       std=[0.5, 0.5, 0.5])])
 
 
-def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model, save_path=''):
+def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model, apply_sr, save_path=''):
     target_image_list = []
     img_mask_list = []
     for swaped_img, mat in zip(swaped_imgs, mats):
@@ -38,12 +38,16 @@ def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model
         # kernel = np.ones((10, 10), np.uint8) 
         # img_mask = cv2.erode(img_mask, kernel, iterations=1)
 
-        # SR: ESRGAN (https://github.com/ewrfcas/Face-Super-Resolution)
-        swaped_img = esrgan_fsr_transform(torch.clone(swaped_img))
-        swaped_img = sr_model.netG(swaped_img.unsqueeze(0))
-        swaped_img = swaped_img.squeeze(0).cpu().detach().numpy().transpose((1, 2, 0))
-        swaped_img = np.clip(swaped_img / 2.0 + 0.5, 0, 1)
-        # swaped_img = swaped_img.cpu().detach().numpy().transpose((1, 2, 0))
+        if apply_sr:
+            # SR: ESRGAN (https://github.com/ewrfcas/Face-Super-Resolution)
+            swaped_img = esrgan_fsr_transform(torch.clone(swaped_img))
+            swaped_img = sr_model.netG(swaped_img.unsqueeze(0))
+            swaped_img = swaped_img.squeeze(0).cpu().detach().numpy().transpose((1, 2, 0))
+            swaped_img = np.clip(swaped_img / 2.0 + 0.5, 0, 1)
+            print('SR')
+        else:
+            swaped_img = swaped_img.cpu().detach().numpy().transpose((1, 2, 0))
+            print('NO SR')
 
         mat_rev = cv2.invertAffineTransform(mat)
         mat_rev_face = np.array(mat_rev)

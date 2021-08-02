@@ -91,7 +91,8 @@ def initialize():
     sr_model.netG.eval();
 
 
-def infer(source, target, result_dir='./output', crop_size=224):
+def infer(source, target, apply_sr, result_dir='./output', crop_size=224):
+    print(apply_sr)
     assert isfile(source), f'Can\'t find source at {source}'
     assert isfile(target), f'Can\'t find target at {target}'
     output_filename = f'infer-{splitext(basename(source))[0]}-{splitext(basename(target))[0]}{splitext(basename(target))[1]}'
@@ -119,11 +120,11 @@ def infer(source, target, result_dir='./output', crop_size=224):
     latend_id = latend_id / np.linalg.norm(latend_id, axis=1, keepdims=True)
     latend_id = latend_id.to('cuda')
 
-    video_swap(target, latend_id, model, app, seg_model, sr_model, output_path)
+    video_swap(target, latend_id, model, app, seg_model, sr_model, apply_sr, output_path)
     return output_path
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) == 3, 'Usage: python3 inference.py "path/to/source_image" "path/to/target_video"'
+    assert len(sys.argv) in [3, 4], 'Usage: python3 inference.py "path/to/source_image" "path/to/target_video" [--no_sr]'
     initialize()
-    infer(sys.argv[1], sys.argv[2])
+    infer(sys.argv[1], sys.argv[2], not '--no_sr' in sys.argv)

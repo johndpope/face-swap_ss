@@ -92,7 +92,7 @@ def _totensor(array):
     return img.float().div(255)
 
 @timer('Swapping Face')
-def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, sr_model, save_path, temp_results_dir='./temp_results', crop_size=224):
+def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, sr_model, apply_sr, save_path, temp_results_dir='./temp_results', crop_size=224):
     lower_resolution(video_path)
     print(f'=> Swapping face in "{video_path}"...')
     if exists(temp_results_dir):
@@ -121,7 +121,7 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, sr_m
 
                 swap_result = swap_model(None, frame_align_crop_tensor, id_veсtor, None, True)[0]
                 swap_result_list.append(swap_result)
-            reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, sr_model, 
+            reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, sr_model, apply_sr, 
                                join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
         else:
             frame = frame.astype(np.uint8)
