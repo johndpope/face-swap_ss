@@ -1,4 +1,6 @@
+import mimetypes
 import sys
+import warnings
 from os.path import basename, isfile, join, splitext
 from shutil import copy2
 
@@ -16,8 +18,7 @@ from fsr.models.SRGAN_model import SRGANModel
 from insightface_func.face_detect_crop_single import Face_detect_crop
 from models.models import create_model
 from options.test_options import TestOptions
-from util.videoswap import video_swap
-import warnings
+from util.videoswap import get_media_type, photo_swap, video_swap
 
 onnxruntime.set_default_logger_severity(3)
 torch.nn.Module.dump_patches = True
@@ -29,7 +30,6 @@ transformer_Arcface = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
 ])
-
 
 def initialize():
     opt = TestOptions()
@@ -123,12 +123,18 @@ def infer(source_path, target_path, apply_sr=True, is_prod=True, result_dir='./o
     source_latend_id = source_latend_id / np.linalg.norm(source_latend_id, axis=1, keepdims=True)
     source_latend_id = source_latend_id.to('cuda')
 
-    video_swap(target_path, source_latend_id, face_swap_model,
-               face_detector, seg_model, sr_model, apply_sr, output_path, is_prod)
+    media_type = get_media_type(target_path)
+    
+    if media_type == 'video':
+        video_swap(target_path, source_latend_id, face_swap_model,
+                   face_detector, seg_model, sr_model, apply_sr, output_path, is_prod)
+    else:
+        photo_swap(target_path, source_latend_id, face_swap_model,
+                   face_detector, seg_model, sr_model, apply_sr, output_path, is_prod)
     return output_path
 
 
 if __name__ == "__main__":
-    assert len(sys.argv) in [3, 4], 'Usage: python3 inference.py "path/to/source_image" "path/to/target_video" [--no_sr]'
+    assert len(sys.argv) in [3, 4], 'Usage: python3 inference.py "path/to/source_image" "path/to/target_video_or_image" [--no_sr]'
     initialize()
     infer(sys.argv[1], sys.argv[2], not '--no_sr' in sys.argv, is_prod=False)

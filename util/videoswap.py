@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import shutil
 import subprocess
@@ -11,6 +12,14 @@ import torch
 from tqdm import tqdm
 
 from util.reverse2original import reverse2wholeimage
+
+def get_media_type(path: str) -> str:
+    try:
+        media_type = mimetypes.guess_type(path)[0].split('/')[0]
+    except:
+        raise Exception(f'Unable to parse media type of {path} ({datetime.now()}).')
+    assert media_type in ['image', 'video'], f'Unable to recognize media type of {path} ({datetime.now()}).'
+    return media_type
 
 
 def timer(func_name):
@@ -72,7 +81,7 @@ def get_frames_n(video_path: str) -> int:
     return frames_n
 
 @timer('Lowering resolution')
-def lower_resolution(video_path: str) -> None:
+def lower_video_resolution(video_path: str) -> None:
     M = 1080
     vidcap = cv2.VideoCapture(video_path)
     width, height = vidcap.get(cv2.CAP_PROP_FRAME_WIDTH), vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -93,7 +102,7 @@ def _totensor(array):
 
 @timer('Swapping Face in video')
 def video_swap(video_path, source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, output_path, is_prod, temp_results_dir='./temp_results', crop_size=224):
-    lower_resolution(video_path)
+    lower_video_resolution(video_path)
     print(f'=> Swapping face in "{video_path}"...')
     if exists(temp_results_dir):
         shutil.rmtree(temp_results_dir)
@@ -115,8 +124,22 @@ def video_swap(video_path, source_latend_id, face_swap_model, face_detector, seg
     create_video(output_path, audio_path, temp_results_dir, fps)
     shutil.rmtree(temp_results_dir)
 
+@timer('Swapping Face in photo')
+def photo_swap(photo_path, source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, output_path, is_prod, temp_results_dir='./temp_results', crop_size=224):
+    # lower_photo_resolution(photo_path)
+    print(f'=> Swapping face in "{photo_path}"...')
+    if exists(temp_results_dir):
+        shutil.rmtree(temp_results_dir)
+    os.makedirs(temp_results_dir)
 
-def swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, frame_index, frame):
+    photo = cv2.imread(photo_path)
+    swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, 0, photo, ext=splitext(output_path)[1])
+    photo_infer_path = os.listdir(temp_results_dir)[0]
+    os.makedirs(dirname(output_path), exist_ok=True)
+    os.rename(join(temp_results_dir, photo_infer_path), output_path)
+
+
+def swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, frame_index, frame, ext='.jpg'):
     with torch.no_grad():
         detect_results = face_detector.get(frame, crop_size)
 
@@ -131,7 +154,7 @@ def swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_m
                 swap_result = face_swap_model(None, frame_align_crop_tensor, source_latend_id, None, True)[0]
                 swap_result_list.append(swap_result)
             reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, sr_model, apply_sr, 
-                                join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
+                                join(temp_results_dir, f'frame_{frame_index:0>7d}{ext}'))
         else:
             frame = frame.astype(np.uint8)
             cv2.imwrite(join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)), frame)

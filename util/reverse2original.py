@@ -4,9 +4,10 @@ import torch
 import torchvision.transforms as transforms
 from skimage.exposure import rescale_intensity
 
-esrgan_fsr_transform = transforms.Compose([transforms.Resize((128, 128)),
-                                 transforms.Normalize(mean=[0.5, 0.5, 0.5],
-                                                      std=[0.5, 0.5, 0.5])])
+esrgan_fsr_transform = transforms.Compose([
+    transforms.Resize((128, 128)),
+    transforms.Normalize(mean=[0.5, 0.5, 0.5],
+                         std=[0.5, 0.5, 0.5])])
 
 
 def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model, apply_sr, save_path=''):
@@ -60,9 +61,8 @@ def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model
         img_mask = np.reshape(img_mask, [img_mask.shape[0], img_mask.shape[1], 1])
         img_mask_list.append(img_mask)
 
-    img = np.array(oriimg, dtype=np.float)
     for img_mask, target_image in zip(img_mask_list, target_image_list):
-        img = img_mask * target_image + (1-img_mask) * img
+        img = img_mask * target_image + (1-img_mask) * np.array(oriimg, dtype=np.float)
 
-    final_img = img.astype(np.uint8)
-    cv2.imwrite(save_path, final_img)
+    img = img.astype(np.uint8)
+    cv2.imwrite(save_path, img)
