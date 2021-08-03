@@ -1,4 +1,3 @@
-import mimetypes
 import sys
 import warnings
 from os.path import basename, isfile, join, splitext
@@ -13,7 +12,7 @@ import torch.nn.functional as F
 from PIL import Image
 from torchvision import transforms
 
-from face_seg.nets.MobileNetV2_unet import MobileNetV2_unet
+from face_parsing.bisenet import BiSeNet
 from fsr.models.SRGAN_model import SRGANModel
 from insightface_func.face_detect_crop_single import Face_detect_crop
 from models.models import create_model
@@ -36,18 +35,18 @@ def initialize():
     opt.initialize()
     opt.parser.add_argument('-f')  # dummy arg to avoid bug
     opt = opt.parse()
-    opt.Arc_path = './weights/arcface_checkpoint.tar'
+    opt.Arc_path = join('weights', 'arcface_checkpoint.tar')
     opt.isTrain = False
     global face_swap_model
     face_swap_model = create_model(opt)
     face_swap_model.eval()
     global face_detector
-    face_detector = Face_detect_crop(name='antelope', root='./insightface_func/models')
+    face_detector = Face_detect_crop(name='antelope', root=join('insightface_func', 'models'))
     face_detector.prepare(ctx_id=0, det_thresh=0.6, det_size=(256, 256))
     global seg_model
-    seg_model = MobileNetV2_unet(None).to('cuda')
-    state_dict = torch.load('./face_seg/checkpoints/model.pt', map_location='cpu')
-    seg_model.load_state_dict(state_dict)
+    seg_model = BiSeNet(n_classes=19)
+    seg_model.cuda()
+    seg_model.load_state_dict(torch.load(join('weights', '79999_iter.pth')))
     seg_model.eval()
     global sr_model
     args = easydict.EasyDict({

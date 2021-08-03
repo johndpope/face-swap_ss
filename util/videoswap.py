@@ -13,6 +13,7 @@ from tqdm import tqdm
 
 from util.reverse2original import reverse2wholeimage
 
+
 def get_media_type(path: str) -> str:
     try:
         media_type = mimetypes.guess_type(path)[0].split('/')[0]
@@ -56,11 +57,11 @@ def create_video(save_path: str, audio_path: str, frames_path: str, fps: float) 
     print(f'=> Creating video from frames at "{frames_path}"...')
     os.makedirs(dirname(save_path), exist_ok=True)
     if isfile(audio_path):
-        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -i "{audio_path}" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
+        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -v 8 -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -i "{audio_path}" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
         execute_command(command, f'> > > > > Error while creating the video from the frames of {frames_path} and audio from {audio_path} ({datetime.now()}).', 
                         raise_on_error=True)
     else:
-        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
+        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -v 8 -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
         execute_command(command, f'> > > > > Error while creating the video from the frames of {frames_path} ({datetime.now()}).', 
                         raise_on_error=True)
 
@@ -137,6 +138,7 @@ def photo_swap(photo_path, source_latend_id, face_swap_model, face_detector, seg
     photo_infer_path = os.listdir(temp_results_dir)[0]
     os.makedirs(dirname(output_path), exist_ok=True)
     os.rename(join(temp_results_dir, photo_infer_path), output_path)
+    shutil.rmtree(temp_results_dir)
 
 
 def swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, frame_index, frame, ext='.jpg'):
