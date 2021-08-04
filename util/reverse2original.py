@@ -10,6 +10,8 @@ esrgan_fsr_transform = transforms.Compose([
     transforms.Normalize(mean=[0.5, 0.5, 0.5],
                          std=[0.5, 0.5, 0.5])])
 
+face_part_ids = [1, 2, 3, 4, 5, 6, 10]
+mouth_ids = [11, 12, 13]
 
 def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model, apply_sr, save_path=''):
     target_image_list = []
@@ -20,11 +22,8 @@ def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model
         seg_mask_logits = seg_model(swaped_img_ready)[0]
         seg_mask_logits = F.interpolate(seg_mask_logits, size=(crop_size, crop_size))
         seg_mask = seg_mask_logits.squeeze().cpu().detach().numpy().argmax(0).astype(np.uint8)
-        face_part_ids = [1, 2, 3, 4, 5, 6, 10, 11, 12, 13] # [1, 2, 3, 4, 5, 6, 10, 12, 13]
-        img_mask = np.zeros([seg_mask.shape[0], seg_mask.shape[1]])
-        for valid_id in face_part_ids:
-            valid_index = np.where(seg_mask == valid_id)
-            img_mask[valid_index] = 255
+        img_mask = np.zeros_like(seg_mask)
+        img_mask[np.isin(seg_mask, face_part_ids)] = 255
         # img_mask = np.full((crop_size, crop_size), 255, dtype=float)
 
         # select and fill the biggest contour (in case of face hair)
@@ -32,6 +31,8 @@ def reverse2wholeimage(swaped_imgs, mats, crop_size, oriimg, seg_model, sr_model
         img_mask_ = np.zeros_like(img_mask)
         cv2.drawContours(img_mask_, [max(contours, key = cv2.contourArea)], 0, 255, -1)
         img_mask = np.array(img_mask_)
+        # remove mouth and lips
+        img_mask[np.isin(seg_mask, mouth_ids)] = 0
 
         # median blur to smooth sharp edges
         img_mask = cv2.medianBlur(img_mask.astype(np.uint8), 15)
