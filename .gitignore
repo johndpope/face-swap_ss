@@ -1,3 +1,13 @@
+*.jpg
+*.JPG
+*.png
+*.PNG
+*.mp4
+*.MP4
+*.mov
+*.MOV
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -122,3 +132,4 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+.vscode/launch.json

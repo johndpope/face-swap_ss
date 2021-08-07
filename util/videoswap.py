@@ -1,3 +1,4 @@
+import mimetypes
 import os
 import shutil
 import subprocess
@@ -11,6 +12,15 @@ import torch
 from tqdm import tqdm
 
 from util.reverse2original import reverse2wholeimage
+
+
+def get_media_type(path: str) -> str:
+    try:
+        media_type = mimetypes.guess_type(path)[0].split('/')[0]
+    except:
+        raise Exception(f'Unable to parse media type of {path} ({datetime.now()}).')
+    assert media_type in ['image', 'video'], f'Unable to recognize media type of {path} ({datetime.now()}).'
+    return media_type
 
 
 def timer(func_name):
@@ -47,14 +57,15 @@ def create_video(save_path: str, audio_path: str, frames_path: str, fps: float) 
     print(f'=> Creating video from frames at "{frames_path}"...')
     os.makedirs(dirname(save_path), exist_ok=True)
     if isfile(audio_path):
-        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -i "{audio_path}" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
+        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -v 8 -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -i "{audio_path}" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
         execute_command(command, f'> > > > > Error while creating the video from the frames of {frames_path} and audio from {audio_path} ({datetime.now()}).', 
                         raise_on_error=True)
     else:
-        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
+        command = f'ffmpeg -hide_banner -loglevel warning -pattern_type glob -v 8 -r "{fps}" -i "{normpath(frames_path)}/*.jpg" -c:v libx264 -pix_fmt yuv420p -y "{save_path}"'
         execute_command(command, f'> > > > > Error while creating the video from the frames of {frames_path} ({datetime.now()}).', 
                         raise_on_error=True)
 
+@timer('Getting number of frames')
 def get_frames_n(video_path: str) -> int:
     def _manual_count(handler):
         frames_n = 0
@@ -70,7 +81,8 @@ def get_frames_n(video_path: str) -> int:
     cap.release()
     return frames_n
 
-def lower_resolution(video_path: str) -> None:
+@timer('Lowering resolution')
+def lower_video_resolution(video_path: str) -> None:
     M = 1080
     vidcap = cv2.VideoCapture(video_path)
     width, height = vidcap.get(cv2.CAP_PROP_FRAME_WIDTH), vidcap.get(cv2.CAP_PROP_FRAME_HEIGHT)
@@ -89,9 +101,9 @@ def _totensor(array):
     img = tensor.transpose(0, 1).transpose(0, 2).contiguous()
     return img.float().div(255)
 
-@timer('Swapping Face')
-def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, save_path, temp_results_dir='./temp_results', crop_size=224):
-    lower_resolution(video_path)
+@timer('Swapping Face in video')
+def video_swap(video_path, source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, output_path, is_prod, temp_results_dir='./temp_results', crop_size=224):
+    lower_video_resolution(video_path)
     print(f'=> Swapping face in "{video_path}"...')
     if exists(temp_results_dir):
         shutil.rmtree(temp_results_dir)
@@ -105,9 +117,33 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, save
     video = cv2.VideoCapture(video_path)
     fps = video.get(cv2.CAP_PROP_FPS)
 
-    for frame_index in tqdm(range(frame_count)): 
+    for frame_index in tqdm(range(frame_count), disable=is_prod): 
         _, frame = video.read()
-        detect_results = detect_model.get(frame, crop_size)
+        swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, frame_index, frame)
+
+    video.release()
+    create_video(output_path, audio_path, temp_results_dir, fps)
+    shutil.rmtree(temp_results_dir)
+
+@timer('Swapping Face in photo')
+def photo_swap(photo_path, source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, output_path, is_prod, temp_results_dir='./temp_results', crop_size=224):
+    # lower_photo_resolution(photo_path)
+    print(f'=> Swapping face in "{photo_path}"...')
+    if exists(temp_results_dir):
+        shutil.rmtree(temp_results_dir)
+    os.makedirs(temp_results_dir)
+
+    photo = cv2.imread(photo_path)
+    swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, 0, photo, ext=splitext(output_path)[1])
+    photo_infer_path = os.listdir(temp_results_dir)[0]
+    os.makedirs(dirname(output_path), exist_ok=True)
+    os.rename(join(temp_results_dir, photo_infer_path), output_path)
+    shutil.rmtree(temp_results_dir)
+
+
+def swap_frame(source_latend_id, face_swap_model, face_detector, seg_model, sr_model, apply_sr, temp_results_dir, crop_size, frame_index, frame, ext='.jpg'):
+    with torch.no_grad():
+        detect_results = face_detector.get(frame, crop_size)
 
         if not detect_results in [None, (None, None)]:
             frame_align_crop_list = detect_results[0]
@@ -117,14 +153,10 @@ def video_swap(video_path, id_veсtor, swap_model, detect_model, seg_model, save
             for frame_align_crop in frame_align_crop_list:
                 frame_align_crop_tensor = _totensor(cv2.cvtColor(frame_align_crop,cv2.COLOR_BGR2RGB))[None,...].cuda()
 
-                swap_result = swap_model(None, frame_align_crop_tensor, id_veсtor, None, True)[0]
+                swap_result = face_swap_model(None, frame_align_crop_tensor, source_latend_id, None, True)[0]
                 swap_result_list.append(swap_result)
-            reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, 
-                               join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)))
+            reverse2wholeimage(swap_result_list, frame_mat_list, crop_size, frame, seg_model, sr_model, apply_sr, 
+                                join(temp_results_dir, f'frame_{frame_index:0>7d}{ext}'))
         else:
             frame = frame.astype(np.uint8)
             cv2.imwrite(join(temp_results_dir, 'frame_{:0>7d}.jpg'.format(frame_index)), frame)
-
-    video.release()
-    create_video(save_path, audio_path, temp_results_dir, fps)
-    shutil.rmtree(temp_results_dir)

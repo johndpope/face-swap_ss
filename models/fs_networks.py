@@ -114,22 +114,22 @@ class Generator_Adain_Upsample(nn.Module):
 
         if self.deep:
             self.up4 = nn.Sequential(
-                nn.Upsample(scale_factor=2, mode='bilinear'),
+                nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
                 nn.Conv2d(512, 512, kernel_size=3, stride=1, padding=1),
                 nn.BatchNorm2d(512), activation
             )
         self.up3 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
             nn.Conv2d(512, 256, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(256), activation
         )
         self.up2 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
             nn.Conv2d(256, 128, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(128), activation
         )
         self.up1 = nn.Sequential(
-            nn.Upsample(scale_factor=2, mode='bilinear'),
+            nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False),
             nn.Conv2d(128, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64), activation
         )
